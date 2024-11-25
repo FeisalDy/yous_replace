@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model books {
+  bookId      Int      @id @unique @default(autoincrement())
+  status      Int?
+  tags        String?
+  score       Float?
+  scorerCount Int?
+  title       String
+  countWord   BigInt?
+  author      String
+  cover       String?
+  updateAt    String?
+  caseId      Int?
+
+  comments    comments[] @relation("BookComments")
+}
+
+model comments {
+  id         String   @id @unique
+  bookId      Int
+  createrId   Int
+  content     String
+  createdAt   String
+  essence     Int?
+  inReview    Int?
+  jurisdiction Int?
+  praiseCount Int?
+  replyCount  Int?
+  score       Int?
+  shielded    Int?
+  tags        String?
+  updateAt    String?
+  voting      Int?
+  collected    Int?
+  replyable    Int?
+
+  book        books     @relation("BookComments", fields: [bookId], references: [bookId])
+  creator     users     @relation("UserComments", fields: [createrId], references: [id])
+}
+
+model users {
+  id        Int      @id @default(autoincrement())
+  avatarId  String?
+  userName  String
+  comments  comments[] @relation("UserComments")
+
+}
+
