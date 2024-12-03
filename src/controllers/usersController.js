@@ -25,8 +25,17 @@ export async function getUser (req, res) {
   try {
     const user = await prisma.users.findUnique({
       where: { id: id },
-      include: {
+      select: {
+        id: true,
+        userName: true,
         comments: {
+          select: {
+            id: true,
+            content: true,
+            score: true,
+            tags: true,
+            updateAt: true
+          },
           skip,
           take: limit
         }
@@ -42,11 +51,12 @@ export async function getUser (req, res) {
     })
 
     return res.status(200).json({
-      user: {
-        id: user.id,
-        username: user.userName
-      },
-      comments: user.comments,
+      //   user: {
+      //     id: user.id,
+      //     username: user.userName
+      //   },
+      //   comments: user.comments,
+      user,
       pagination: {
         total: totalComments,
         page,

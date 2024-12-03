@@ -56,10 +56,20 @@ export async function getBooks (req, res) {
 
     const [books, totalBooks] = await Promise.all([
       prisma.books.findMany({
+        select: {
+          bookId: true,
+          tags: true,
+          score: true,
+          scorerCount: true,
+          title: true,
+          countWord: true,
+          author: true,
+          cover: true
+        },
         where: whereClause,
         orderBy: { [sortBy]: order.toLowerCase() === 'desc' ? 'desc' : 'asc' },
         skip,
-        take: parseInt(limit)
+        take: Number(limit)
       }),
       prisma.books.count({ where: whereClause })
     ])
@@ -68,8 +78,8 @@ export async function getBooks (req, res) {
       data: books,
       pagination: {
         total: totalBooks,
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: Number(page),
+        limit: Number(limit),
         totalPages: Math.ceil(totalBooks / limit)
       }
     })
@@ -89,7 +99,7 @@ export async function getBook (req, res) {
     limit = 10
   } = req.query
 
-  includesComment = includesComment === 'true' // Correct handling of boolean string
+  includesComment = includesComment === 'true'
   page = Number(page)
   limit = Number(limit)
 
@@ -116,7 +126,7 @@ export async function getBook (req, res) {
     const includeClause = {}
 
     if (bookId) {
-      whereClause.bookId = parseInt(bookId)
+      whereClause.bookId = Number(bookId)
     }
     if (title) {
       whereClause.title = { contains: title }
@@ -125,20 +135,38 @@ export async function getBook (req, res) {
       includeClause.skip = skip
       includeClause.take = limit
     }
-    console.log(includesComment)
 
     const book = await prisma.books.findFirst({
       where: whereClause,
-      include: {
-        comments: includesComment ? includeClause : false
+      select: {
+        bookId: true,
+        tags: true,
+        score: true,
+        scorerCount: true,
+        title: true,
+        countWord: true,
+        author: true,
+        cover: true,
+        comments: includesComment
+          ? {
+              select: {
+                id: true,
+                content: true,
+                score: true,
+                tags: true,
+                updateAt: true,
+                creator: { select: { id: true, userName: true } }
+              },
+              skip,
+              take: limit
+            }
+          : false
       }
     })
 
     if (!book) {
       return res.status(404).json({ error: 'Book not found.' })
     }
-
-    // return res.json(book)
 
     const totalComments = await prisma.comments.count({
       where: { bookId: book.bookId }

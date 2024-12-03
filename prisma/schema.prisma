@@ -51,6 +51,5 @@ model users {
   avatarId  String?
   userName  String
   comments  comments[] @relation("UserComments")
-
 }
 
