@@ -127,12 +127,12 @@ export async function getComments_FullTextSearch (req, res) {
     }))
 
     parsedComments.forEach(comment => {
-      delete comment.creatorId // Remove creatorId
-      delete comment.userName // Remove userName
+      delete comment.creatorId
+      delete comment.userName
     })
 
     const totalCommentsResult =
-      await prisma.$queryRaw`SELECT COUNT(*) as total FROM virtual_comments (${search})`
+      await prisma.$queryRaw`SELECT COUNT(*) as total FROM virtual_comments WHERE content = ${search}`
     let totalComments = Number(totalCommentsResult[0]?.total || 0)
     return res.status(200).json({
       data: parsedComments,

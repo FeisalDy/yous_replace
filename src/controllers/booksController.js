@@ -96,7 +96,8 @@ export async function getBook (req, res) {
     title,
     includesComment = false,
     page = 1,
-    limit = 10
+    limit = 10,
+    cursor
   } = req.query
 
   includesComment = includesComment === 'true'
@@ -119,21 +120,16 @@ export async function getBook (req, res) {
     return res.status(400).json('Page and limit must be positive numbers')
   }
 
-  const skip = (page - 1) * limit
+  //   const skip = (page - 1) * limit
 
   try {
     const whereClause = {}
-    const includeClause = {}
 
     if (bookId) {
       whereClause.bookId = Number(bookId)
     }
     if (title) {
       whereClause.title = { contains: title }
-    }
-    if (includesComment) {
-      includeClause.skip = skip
-      includeClause.take = limit
     }
 
     const book = await prisma.books.findFirst({
@@ -157,8 +153,11 @@ export async function getBook (req, res) {
                 updateAt: true,
                 creator: { select: { id: true, userName: true } }
               },
-              skip,
-              take: limit
+              orderBy: { id: 'asc' },
+              ...(cursor
+                ? { cursor: { id: cursor }, take: limit }
+                : { take: limit }),
+              skip: 1
             }
           : false
       }
@@ -168,15 +167,26 @@ export async function getBook (req, res) {
       return res.status(404).json({ error: 'Book not found.' })
     }
 
+    let comments = []
+    let hasMore = false
+
+    if (includesComment && book.comments) {
+      comments = book.comments.slice(0, limit)
+      hasMore = book.comments.length > limit - 1
+    }
+
     const totalComments = await prisma.comments.count({
       where: { bookId: book.bookId }
     })
 
     return res.status(200).json({
-      data: book,
+      data: {
+        ...book,
+        comments
+      },
       pagination: {
+        nextCursor: hasMore ? comments[comments.length - 1].id : null,
         total: totalComments,
-        page,
         limit,
         totalPages: Math.ceil(totalComments / limit)
       }
