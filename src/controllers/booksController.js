@@ -7,7 +7,7 @@ export async function getBooks (req, res) {
     limit = 10,
     search = '',
     searchBy = 'title',
-    sortBy = 'bookId',
+    sortBy,
     order = 'asc'
   } = req.query
 
@@ -28,7 +28,7 @@ export async function getBooks (req, res) {
       )}.`
     },
     {
-      condition: !validSortBy.includes(sortBy),
+      condition: sortBy && !validSortBy.includes(sortBy),
       message: `Invalid sortBy field. It can be one of the following: ${validSortBy.join(
         ', '
       )}.`
@@ -54,23 +54,31 @@ export async function getBooks (req, res) {
           : { [searchBy]: { contains: search } }
     }
 
+    const booksQuery = {
+      select: {
+        bookId: true,
+        en_title: true,
+        title: true,
+        author: true,
+        tags: true,
+        score: true,
+        scorerCount: true,
+        countWord: true,
+        cover: true
+      },
+      where: whereClause,
+      skip,
+      take: Number(limit)
+    }
+
+    if (sortBy) {
+      booksQuery.orderBy = {
+        [sortBy]: order.toLowerCase() === 'desc' ? 'desc' : 'asc'
+      }
+    }
+
     const [books, totalBooks] = await Promise.all([
-      prisma.books.findMany({
-        select: {
-          bookId: true,
-          tags: true,
-          score: true,
-          scorerCount: true,
-          title: true,
-          countWord: true,
-          author: true,
-          cover: true
-        },
-        where: whereClause,
-        orderBy: { [sortBy]: order.toLowerCase() === 'desc' ? 'desc' : 'asc' },
-        skip,
-        take: Number(limit)
-      }),
+      prisma.books.findMany(booksQuery),
       prisma.books.count({ where: whereClause })
     ])
 
@@ -96,8 +104,7 @@ export async function getBook (req, res) {
     title,
     includesComment = false,
     page = 1,
-    limit = 10,
-    cursor
+    limit = 10
   } = req.query
 
   includesComment = includesComment === 'true'
@@ -120,7 +127,7 @@ export async function getBook (req, res) {
     return res.status(400).json('Page and limit must be positive numbers')
   }
 
-  //   const skip = (page - 1) * limit
+  const skip = (page - 1) * limit
 
   try {
     const whereClause = {}
@@ -136,12 +143,13 @@ export async function getBook (req, res) {
       where: whereClause,
       select: {
         bookId: true,
+        en_title: true,
+        title: true,
+        author: true,
         tags: true,
         score: true,
         scorerCount: true,
-        title: true,
         countWord: true,
-        author: true,
         cover: true,
         comments: includesComment
           ? {
@@ -153,11 +161,8 @@ export async function getBook (req, res) {
                 updateAt: true,
                 creator: { select: { id: true, userName: true } }
               },
-              orderBy: { id: 'asc' },
-              ...(cursor
-                ? { cursor: { id: cursor }, take: limit }
-                : { take: limit }),
-              skip: 1
+              take: limit,
+              skip
             }
           : false
       }
@@ -168,11 +173,9 @@ export async function getBook (req, res) {
     }
 
     let comments = []
-    let hasMore = false
 
     if (includesComment && book.comments) {
-      comments = book.comments.slice(0, limit)
-      hasMore = book.comments.length > limit - 1
+      comments = book.comments
     }
 
     const totalComments = await prisma.comments.count({
@@ -182,12 +185,12 @@ export async function getBook (req, res) {
     return res.status(200).json({
       data: {
         ...book,
-        comments
+        comments: comments
       },
       pagination: {
-        nextCursor: hasMore ? comments[comments.length - 1].id : null,
         total: totalComments,
-        limit,
+        page: Number(page),
+        limit: Number(limit),
         totalPages: Math.ceil(totalComments / limit)
       }
     })

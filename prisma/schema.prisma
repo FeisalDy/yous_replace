@@ -8,48 +8,94 @@ datasource db {
 }
 
 model books {
-  bookId      Int      @id @unique @default(autoincrement())
+  bookId      Int     @id @unique(map: "sqlite_autoindex_books_1") @default(autoincrement())
   status      Int?
   tags        String?
   score       Float?
   scorerCount Int?
-  title       String
-  countWord   BigInt?
-  author      String
+  title       String?
+  countWord   Int?
+  author      String?
   cover       String?
   updateAt    String?
   caseId      Int?
-
+  en_title    String?
   comments    comments[] @relation("BookComments")
 }
 
 model comments {
-  id         String   @id @unique
-  bookId      Int
-  createrId   Int
-  content     String
-  createdAt   String
-  essence     Int?
-  inReview    Int?
+  id           String  @id @unique
+  bookId       Int
+  createrId    Int
+  content      String?
+  createdAt    String?
+  essence      Int?
+  inReview     Int?
   jurisdiction Int?
-  praiseCount Int?
-  replyCount  Int?
-  score       Int?
-  shielded    Int?
-  tags        String?
-  updateAt    String?
-  voting      Int?
+  praiseCount  Int?
+  replyCount   Int?
+  score        Int?
+  shielded     Int?
+  tags         String?
+  updateAt     String?
+  voting       Int?
   collected    Int?
   replyable    Int?
-
+  
   book        books     @relation("BookComments", fields: [bookId], references: [bookId])
   creator     users     @relation("UserComments", fields: [createrId], references: [id])
+
+  @@index([createrId], map: "idx_comments_createrId")
 }
 
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model users {
-  id        Int      @id @default(autoincrement())
-  avatarId  String?
-  userName  String
+  id       Int  @id @default(autoincrement())
+  avatarId String?
+  userName String?
   comments  comments[] @relation("UserComments")
+
+  @@index([id], map: "idx_users_id")
 }
 
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model comments_fts {
+  id      Unsupported("")?
+  content Unsupported("")?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model comments_fts_config {
+  k Unsupported("")  @id
+  v Unsupported("")?
+
+  @@ignore
+}
+
+model comments_fts_content {
+  id Int              @id @default(autoincrement())
+  c0 Unsupported("")?
+  c1 Unsupported("")?
+}
+
+model comments_fts_data {
+  id    Int    @id @default(autoincrement())
+  block Bytes?
+}
+
+model comments_fts_docsize {
+  id Int    @id @default(autoincrement())
+  sz Bytes?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model comments_fts_idx {
+  segid Unsupported("")
+  term  Unsupported("")
+  pgno  Unsupported("")?
+
+  @@id([segid, term])
+  @@ignore
+}

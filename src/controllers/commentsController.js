@@ -101,6 +101,7 @@ export async function getComments_FullTextSearch (req, res) {
   }
 
   let { search, page = 1, limit = 20 } = req.query
+  search = `"${search}"*`
 
   page = Number(page)
   limit = Number(limit)
@@ -114,25 +115,52 @@ export async function getComments_FullTextSearch (req, res) {
 
   const skip = (page - 1) * limit
   try {
-    const comments =
-      await prisma.$queryRaw`SELECT vc.id, vc.content, vc.score, vc.tags, vc.updateAt, (SELECT JSON_OBJECT('bookId', b.bookId, 'tags', b.tags, 'score', b.score, 'scorerCount', b.scorerCount, 'title', b.title, 'countWord', b.countWord, 'author', b.author, 'cover', b.cover) FROM books b WHERE b.bookId = vc.bookId) AS book, u.id as creatorId, u.userName FROM virtual_comments vc LEFT JOIN users u ON u.id = vc.createrId WHERE vc.content = ${search} LIMIT ${limit} OFFSET ${skip}`
+    const comments = await prisma.$queryRaw`SELECT 
+      c.id, 
+      c.content, 
+      c.score, 
+      c.tags, 
+      c.updateAt, 
+      (
+          SELECT JSON_OBJECT(
+              'bookId', b.bookId, 
+              'title', b.en_title,
+              'ori_title', b.title, 
+              'author', b.author, 
+              'tags', b.tags, 
+              'score', b.score, 
+              'scorerCount', b.scorerCount, 
+              'countWord', b.countWord, 
+              'cover', b.cover
+          ) 
+          FROM books b 
+          WHERE b.bookId = c.bookId
+      ) AS book,
+      JSON_OBJECT(
+          'creatorId', u.id, 
+          'userName', u.userName
+      ) AS creator
+  FROM 
+      comments c 
+  JOIN 
+      comments_fts fts 
+  ON 
+      c.id = fts.id 
+  LEFT JOIN 
+      users u 
+  ON 
+      c.createrId = u.id 
+  WHERE 
+      fts.content MATCH ${search} LIMIT ${limit} OFFSET ${skip}`
 
     let parsedComments = comments.map(comment => ({
       ...comment,
       book: JSON.parse(comment.book),
-      creator: {
-        creatorId: comment.creatorId,
-        userName: comment.userName
-      }
+      creator: JSON.parse(comment.creator)
     }))
 
-    parsedComments.forEach(comment => {
-      delete comment.creatorId
-      delete comment.userName
-    })
-
     const totalCommentsResult =
-      await prisma.$queryRaw`SELECT COUNT(*) as total FROM virtual_comments WHERE content = ${search}`
+      await prisma.$queryRaw`SELECT COUNT(*) as total FROM comments_fts WHERE content MATCH ${search}`
     let totalComments = Number(totalCommentsResult[0]?.total || 0)
     return res.status(200).json({
       data: parsedComments,
