@@ -124,8 +124,8 @@ export async function getComments_FullTextSearch (req, res) {
       (
           SELECT JSON_OBJECT(
               'bookId', b.bookId, 
-              'title', b.en_title,
-              'ori_title', b.title, 
+              'en_title', b.en_title,
+              'title', b.title, 
               'author', b.author, 
               'tags', b.tags, 
               'score', b.score, 
